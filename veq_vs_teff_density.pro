@@ -191,6 +191,12 @@ veq_vec_2 = dindgen(1001)
  device, xs=12,ys=10, /inches
  loadct,13
 
+yconf_bounds = dblarr(3, ntbins)
+oconf_bounds = dblarr(3, ntbins)
+yconf_bounds2 = dblarr(3, ntbins)
+oconf_bounds2 = dblarr(3, ntbins)
+yconf_bounds3 = dblarr(3, ntbins)
+oconf_bounds3 = dblarr(3, ntbins)
 
 for tbin=0, ntbins-1 do begin
 
@@ -212,14 +218,36 @@ for tbin=0, ntbins-1 do begin
     ypdf = yveq_hist/total(yveq_hist, /double)
     opdf = oveq_hist/total(oveq_hist, /double)
 
-    titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
+    yconf = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.16,0.84])
+    oconf = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.16,0.84])
+
+    yconf2 = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.025,0.975])
+    oconf2 = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.025,0.975])
+
+    yconf3 = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.005,0.995])
+    oconf3 = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.005,0.995])
+
+
+
+    yconf_bounds[*,tbin] = yconf
+    oconf_bounds[*,tbin] = oconf
+
+    yconf_bounds2[*,tbin] = yconf2
+    oconf_bounds2[*,tbin] = oconf2
+    
+    yconf_bounds3[*,tbin] = yconf3
+    oconf_bounds3[*,tbin] = oconf3
+
+   titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
 
     ;plot, veq_vec_2, ypdf, ps=10, xr=[0,75], yr =
     ;[0,max(ypdf)>max(opdf)], tit=titstr
-    plot, veq_vec_2, ypdf, ps=10, xr=[0,75], yr = [0,0.14], tit=titstr
+    plot, veq_vec_2, ypdf, ps=10, xr=[0,100], yr = [0,0.14], tit=titstr
     oplot, veq_vec_2, opdf, ps=10, color=400
-    
-    
+    oplot, replicate(yconf[1],2), [0,1], linest=2
+    oplot, replicate(yconf[2],2), [0,1], linest=2
+    oplot, replicate(oconf[1],2), [0,1], linest=2, color=400
+    oplot, replicate(oconf[2],2), [0,1], linest=2, color=400
 
 endfor
     
@@ -227,7 +255,7 @@ device, /close_file
 
 !p.multi=[0,1,2]
  set_plot, 'ps'
- device, filename = "veq_vs_teff_agemulti_density2.eps"
+ device, filename = "veq_vs_teff_agemulti_density_conf_12sig.eps"
  device, /color, bits=8
  device, xs=12,ys=10, /inches
 
@@ -243,10 +271,37 @@ density, teff_realizations[*,young_star_idx], veq_realizations[*,young_star_idx]
   /ylog, yr=[1,300], xr=[2600,4000], /ys, /xs, /dlog, drange=[5,1000], ct=-1, $
   ytit="Equatorial Velocity (km/s)", $
   title = "Age < 2 Gyrs", charsize=1.5
+;overplot the confidence intervals
+loadct, 13
+for tbin = 0, ntbins-1 do begin
+    
+    xtemp = tbin_vec[tbin] + (tbinsize/2)
+    oplot, replicate(xtemp,2), yconf_bounds2[1:2,tbin], color=400
+    oplot, [-5,5]+xtemp, replicate(yconf_bounds2[1,tbin],2), color=400
+    oplot, [-5,5]+xtemp, replicate(yconf_bounds2[2,tbin],2), color=400
+    oplot, replicate(xtemp,2), yconf_bounds[1:2,tbin], color=50
+    oplot, [-5,5]+xtemp, replicate(yconf_bounds[1,tbin],2), color=50
+    oplot, [-5,5]+xtemp, replicate(yconf_bounds[2,tbin],2), color=50
+endfor
+
+
 density, teff_realizations[*,old_star_idx], veq_realizations[*,old_star_idx], /ylog, $
   yr=[1,300], xr=[2600,4000], /ys, /xs, /dlog, drange=[5,1000], ct=-1, $
   xtit="Effective Temperature (K)", $
   title = "Age > 2 Gyrs", charsize=1.5
+;overplot the confidence intervals
+loadct, 13
+for tbin = 0, ntbins-1 do begin
+    
+    xtemp = tbin_vec[tbin] + (tbinsize/2)
+    oplot, replicate(xtemp,2), oconf_bounds2[1:2,tbin], color=400
+    oplot, [-5,5]+xtemp, replicate(oconf_bounds2[1,tbin],2), color=400
+    oplot, [-5,5]+xtemp, replicate(oconf_bounds2[2,tbin],2), color=400
+    oplot, replicate(xtemp,2), oconf_bounds[1:2,tbin], color=50
+    oplot, [-5,5]+xtemp, replicate(oconf_bounds[1,tbin],2), color=50
+    oplot, [-5,5]+xtemp, replicate(oconf_bounds[2,tbin],2), color=50
+
+endfor
 
 device, /close_file
 
