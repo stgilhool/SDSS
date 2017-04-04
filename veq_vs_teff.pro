@@ -101,7 +101,6 @@ print, nstars
 dxstop
 
 
-
 ;;;;;; Generate the sini pdf
 inclination = dblarr(1001)/1000d0*!dpi/2d0
 sini_dist = tan(inclination)

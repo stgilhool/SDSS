@@ -32,6 +32,7 @@ restore, 'veq_realization_data.sav'
 ;info = mrdfits('veq_vs_teff_stepfit_results.fits',1)
 info = mrdfits('veq_vs_teff_smoothfit_results.fits',1)
 
+
 vbinsize = 0.05d0
 tbinsize = 25d0
 cbinsize = 0.005
@@ -155,6 +156,7 @@ teff_yreal_vec = reform(teff_yreal_all, nyoung_tot)
 veq_yreal_vec = reform(veq_yreal_all, nyoung_tot)
 
 ;teff_bvec = lindgen(nbins_teff+1)*100+2600
+tbinsize=50
 
 ty_hist = histogram(teff_yreal_all, min=tbinmin, binsize=tbinsize, max=3999.999, reverse_indices=ri_ty)
 
@@ -167,14 +169,28 @@ veq_oreal_vec = reform(veq_oreal_all, nold_tot)
 
 to_hist = histogram(teff_oreal_all, min=tbinmin, binsize=tbinsize, max=3999.999, reverse_indices=ri_to)
 
+
+
+
 ntbins=n_elements(ty_hist) 
 
+tbin_vec = long(lindgen(ntbins+1)*tbinsize+tbinmin)
 nvel_elem = n_elements(veq_vec) 
 young_psf_arr = dblarr(nvel_elem, ntbins)
 old_psf_arr = dblarr(nvel_elem, ntbins)
-set_plot, 'x'
+
 
 veq_vec_2 = dindgen(1001)
+
+
+!p.multi = [0,5,6]
+
+ set_plot, 'ps'
+ device, filename = "veq_vs_teff_pdf_estimate.eps"
+ device, /color, bits=8
+ device, xs=12,ys=10, /inches
+ loadct,13
+
 
 for tbin=0, ntbins-1 do begin
 
@@ -193,14 +209,21 @@ for tbin=0, ntbins-1 do begin
     ;young_psf_arr[*,tbin] = yveq_hist/total(yveq_hist, /double)
     ;old_psf_arr[*,tbin] = oveq_hist/total(oveq_hist, /double)
 
-    plot, veq_vec_2, yveq_hist/total(yveq_hist, /double), ps=10, xr=[0,100]
-    oplot, veq_vec_2, oveq_hist/total(oveq_hist, /double), ps=10, color=200
+    ypdf = yveq_hist/total(yveq_hist, /double)
+    opdf = oveq_hist/total(oveq_hist, /double)
+
+    titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
+
+    ;plot, veq_vec_2, ypdf, ps=10, xr=[0,75], yr =
+    ;[0,max(ypdf)>max(opdf)], tit=titstr
+    plot, veq_vec_2, ypdf, ps=10, xr=[0,75], yr = [0,0.14], tit=titstr
+    oplot, veq_vec_2, opdf, ps=10, color=400
     
-    dxstop
+    
 
 endfor
     
-
+device, /close_file
 
 !p.multi=[0,1,2]
  set_plot, 'ps'
