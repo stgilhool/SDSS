@@ -1,3 +1,35 @@
+function hist_conf_ul, vector, binsize=binsize, binmin=binmin, conf_limit=conf_limit
+; Make histogram to determine mode, and confidence limits for upper
+; limit cases
+
+if n_elements(conf_limit) eq 0 then conf_limit = 0.9
+
+hist = histogram(vector, binsize=binsize, min=binmin, /nan)
+
+xvec = dindgen(n_elements(hist))*binsize + binmin + (binsize/2d0)
+
+; Get confidence interval
+pdf = hist/total(hist,/double)
+cdf = total(pdf, /cum)
+
+conf = interpol(xvec, cdf, conf_limit)
+
+conf = [0d0, conf]
+
+; Get mode (this is not robust)
+smoothpdf = gauss_smooth(pdf, 3, /edge_wrap)
+
+mode_idx = where(smoothpdf eq max(smoothpdf))
+mode = mean(xvec[mode_idx])
+
+; output
+params = [mode, conf]
+
+return, params
+
+end
+
+
 function hist_conf, vector, binsize=binsize, binmin=binmin, conf_bounds=conf_bounds
 ; Make histogram to determine mode, and confidence limits
 
@@ -183,13 +215,17 @@ old_psf_arr = dblarr(nvel_elem, ntbins)
 veq_vec_2 = dindgen(1001)
 
 
-!p.multi = [0,5,6]
+; !p.multi = [0,5,6]
 
- set_plot, 'ps'
- device, filename = "veq_vs_teff_pdf_estimate.eps"
- device, /color, bits=8
- device, xs=12,ys=10, /inches
- loadct,13
+;  set_plot, 'ps'
+;  device, filename = "veq_vs_teff_pdf_estimate.eps"
+;  device, /color, bits=8
+;  device, xs=12,ys=10, /inches
+;  loadct,13
+
+set_plot, 'x'
+!p.multi=[0,1,2]
+window, 0, xs=1600, ys=900
 
 yconf_bounds = dblarr(3, ntbins)
 oconf_bounds = dblarr(3, ntbins)
@@ -197,6 +233,8 @@ yconf_bounds2 = dblarr(3, ntbins)
 oconf_bounds2 = dblarr(3, ntbins)
 yconf_bounds3 = dblarr(3, ntbins)
 oconf_bounds3 = dblarr(3, ntbins)
+yconf_boundsp = dblarr(2, ntbins)
+oconf_boundsp = dblarr(2, ntbins)
 
 for tbin=0, ntbins-1 do begin
 
@@ -212,6 +250,9 @@ for tbin=0, ntbins-1 do begin
     yveq_hist = histogram(yveq, min=vbinmin, binsize=1)
     oveq_hist = histogram(oveq, min=vbinmin, binsize=1)
 
+    xvec_y = dindgen(n_elements(yveq_hist))*1d0 +vbinmin
+    xvec_o = dindgen(n_elements(oveq_hist))*1d0 +vbinmin
+
     ;young_psf_arr[*,tbin] = yveq_hist/total(yveq_hist, /double)
     ;old_psf_arr[*,tbin] = oveq_hist/total(oveq_hist, /double)
 
@@ -221,8 +262,14 @@ for tbin=0, ntbins-1 do begin
     yconf = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.16,0.84])
     oconf = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.16,0.84])
 
+    yconfp = confidence_interval(yveq, min=0d0, conf_interval=0.68)
+    oconfp = confidence_interval(oveq, min=0d0, conf_interval=0.68)
+
     yconf2 = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.025,0.975])
     oconf2 = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.025,0.975])
+
+    if tbin ge 3 then oconf2 = hist_conf_ul(oveq, binsize=0.01, binmin=0, conf_limit=0.95)
+    if tbin ge 10 then yconf2 = hist_conf_ul(yveq, binsize=0.01, binmin=0, conf_limit=0.95)
 
     yconf3 = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.005,0.995])
     oconf3 = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.005,0.995])
@@ -238,24 +285,45 @@ for tbin=0, ntbins-1 do begin
     yconf_bounds3[*,tbin] = yconf3
     oconf_bounds3[*,tbin] = oconf3
 
+    yconf_boundsp[*,tbin] = yconfp
+    oconf_boundsp[*,tbin] = oconfp
+
    titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
 
     ;plot, veq_vec_2, ypdf, ps=10, xr=[0,75], yr =
     ;[0,max(ypdf)>max(opdf)], tit=titstr
-    plot, veq_vec_2, ypdf, ps=10, xr=[0,100], yr = [0,0.14], tit=titstr
-    oplot, veq_vec_2, opdf, ps=10, color=400
-    oplot, replicate(yconf[1],2), [0,1], linest=2
-    oplot, replicate(yconf[2],2), [0,1], linest=2
-    oplot, replicate(oconf[1],2), [0,1], linest=2, color=400
-    oplot, replicate(oconf[2],2), [0,1], linest=2, color=400
+   ;plot, veq_vec_2, ypdf, ps=10, xr=[0,100], yr = [0,0.14],
+   ;tit=titstr
+   plot, xvec_y, ypdf, ps=10, xr=[0,100], yr = [0,0.14], tit=titstr
+    oplot, replicate(yconfp[0],2), [0,1], linest=2
+    oplot, replicate(yconfp[1],2), [0,1], linest=2
+    oplot, replicate(yconf[1],2), [0,1], linest=2, color=200
+    oplot, replicate(yconf[2],2), [0,1], linest=2, color=200
+    
+    ;plot, veq_vec_2, opdf, ps=10, tit = strtrim(oconf2,2)+" |
+    ;"+strtrim(oconf,2)
+    plot, xvec_o, opdf, ps=10, xr = [0,100], yr=[0,0.14]
+    oplot, replicate(oconfp[0],2), [0,1], linest=2
+    oplot, replicate(oconfp[1],2), [0,1], linest=2
+    oplot, replicate(oconf[1],2), [0,1], linest=2, color=200
+    oplot, replicate(oconf[2],2), [0,1], linest=2, color=200
+    
+    print, titstr
+    print, "Young: "+strtrim(yconfp,2)+" | "+strtrim(yconf,2)
+    print, "Old:   "+strtrim(oconfp,2)+" | "+strtrim(oconf,2)
+    print, ''
+
+    
+
+    dxstop
 
 endfor
-    
-device, /close_file
+stop   
+;device, /close_file
 
 !p.multi=[0,1,2]
  set_plot, 'ps'
- device, filename = "veq_vs_teff_agemulti_density_conf_12sig.eps"
+ device, filename = "veq_vs_teff_agemulti_density_conf_2sig.eps"
  device, /color, bits=8
  device, xs=12,ys=10, /inches
 
@@ -276,12 +344,18 @@ loadct, 13
 for tbin = 0, ntbins-1 do begin
     
     xtemp = tbin_vec[tbin] + (tbinsize/2)
-    oplot, replicate(xtemp,2), yconf_bounds2[1:2,tbin], color=400
-    oplot, [-5,5]+xtemp, replicate(yconf_bounds2[1,tbin],2), color=400
-    oplot, [-5,5]+xtemp, replicate(yconf_bounds2[2,tbin],2), color=400
-    oplot, replicate(xtemp,2), yconf_bounds[1:2,tbin], color=50
-    oplot, [-5,5]+xtemp, replicate(yconf_bounds[1,tbin],2), color=50
-    oplot, [-5,5]+xtemp, replicate(yconf_bounds[2,tbin],2), color=50
+    if tbin le 9 then begin
+        oplot, replicate(xtemp,2), yconf_bounds2[1:2,tbin], color=400, thick=3
+        oplot, [-5,5]+xtemp, replicate(yconf_bounds2[1,tbin],2), color=400, thick=3
+        oplot, [-5,5]+xtemp, replicate(yconf_bounds2[2,tbin],2), color=400, thick=3
+        plotsym, 8, /fill
+        oplot, [xtemp], [yconf_bounds2[0,tbin]], color=400, ps=8, thick=3
+    endif else begin
+        plotsym, 5, /fill
+        oplot, [-5,5]+xtemp, replicate(yconf_bounds2[2,tbin],2), color=400, thick=3
+        oplot, replicate(xtemp,2), [1d0,yconf_bounds2[2,tbin]], color=400, thick=3
+        oplot, [xtemp], [1.1d0], color=400, ps=8, thick=3
+    endelse
 endfor
 
 
@@ -294,13 +368,21 @@ loadct, 13
 for tbin = 0, ntbins-1 do begin
     
     xtemp = tbin_vec[tbin] + (tbinsize/2)
-    oplot, replicate(xtemp,2), oconf_bounds2[1:2,tbin], color=400
-    oplot, [-5,5]+xtemp, replicate(oconf_bounds2[1,tbin],2), color=400
-    oplot, [-5,5]+xtemp, replicate(oconf_bounds2[2,tbin],2), color=400
-    oplot, replicate(xtemp,2), oconf_bounds[1:2,tbin], color=50
-    oplot, [-5,5]+xtemp, replicate(oconf_bounds[1,tbin],2), color=50
-    oplot, [-5,5]+xtemp, replicate(oconf_bounds[2,tbin],2), color=50
-
+    if tbin le 2 then begin
+        oplot, replicate(xtemp,2), oconf_bounds2[1:2,tbin], color=400, thick=3
+        oplot, [-5,5]+xtemp, replicate(oconf_bounds2[1,tbin],2), color=400, thick=3
+        oplot, [-5,5]+xtemp, replicate(oconf_bounds2[2,tbin],2), color=400, thick=3
+        plotsym, 8, /fill
+        oplot, [xtemp], [oconf_bounds2[0,tbin]], color=400, ps=8, thick=3
+    endif else begin
+        plotsym, 5, /fill
+        ; draw hat
+        oplot, [-5,5]+xtemp, replicate(oconf_bounds2[2,tbin],2), color=400, thick=3
+        ; draw vertical line
+        oplot, replicate(xtemp,2), [1d0,oconf_bounds2[2,tbin]], color=400, thick=3
+        ; draw downwards arrow
+        oplot, [xtemp], [1.1d0], color=400, ps=8, thick=3
+    endelse
 endfor
 
 device, /close_file
