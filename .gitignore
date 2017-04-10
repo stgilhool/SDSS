@@ -1,5 +1,5 @@
-.sav
-.fits
-.pro~
-.eps
-.ps
+*.sav
+*.fits
+*.pro~
+*.eps
+*.ps
