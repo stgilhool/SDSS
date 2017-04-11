@@ -133,10 +133,12 @@ functargs = {data_vec:vsort_prime, $
              plotpdf:plotpdf, $
              visualize:visualize}
 
+pmulti_instatus = !p.multi
+
 !p.multi=[0,1,2]
 lower_bound = mpfit('ci_optimize', parinfo=parinfo, $
                     functargs=functargs, status=status, /quiet)
-!p.multi=0
+!p.multi=pmulti_instatus
 
 if status gt 0 then begin
     final_bounds = lower_bound + [0d0,conf_interval]
