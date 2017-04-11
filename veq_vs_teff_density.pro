@@ -132,6 +132,11 @@ tbinsize=50
 
 ty_hist = histogram(teff_yreal_all, min=tbinmin, binsize=tbinsize, max=3999.999, reverse_indices=ri_ty)
 
+temp_outstr = {ri:ri_ty, teff:teff_yreal_all, veq:veq_yreal_all, tbin_vec:teff_bin_vec}
+
+mwrfits, temp_outstr, 'vsini_simulation_tempfile.fits', /create
+print, "file written"
+stop
 
 teff_oreal_all = teff_realizations[*,old_star_idx]
 veq_oreal_all = veq_realizations[*,old_star_idx]
@@ -253,9 +258,7 @@ for tbin=0, ntbins-1 do begin
     print, "Old:   "+strtrim(oconfp,2)+" | "+strtrim(oconf,2)
     print, ''
 
-    
-
-  ;  dxstop
+    ;  dxstop
 
 endfor
 ;stop   
