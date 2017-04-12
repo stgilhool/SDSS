@@ -178,106 +178,36 @@ veq_vec_2 = dindgen(1001)
 ;  device, xs=12,ys=10, /inches
 ;  loadct,13
 
-!p.multi=[0,1,2]
-window, 0, xs=1600, ys=900
 
-; yconf_bounds = dblarr(3, ntbins)
-; oconf_bounds = dblarr(3, ntbins)
-; yconf_bounds2 = dblarr(3, ntbins)
-; oconf_bounds2 = dblarr(3, ntbins)
-; yconf_bounds3 = dblarr(3, ntbins)
-; oconf_bounds3 = dblarr(3, ntbins)
-; yconf_boundsp = dblarr(2, ntbins)
-; oconf_boundsp = dblarr(2, ntbins)
-
-; for tbin=0, ntbins-1 do begin
-
-;     ; Get the indices for the temperature bin
-;     ybin_idx = ri_ty[ri_ty[tbin]:ri_ty[tbin+1]-1]
-;     obin_idx = ri_to[ri_to[tbin]:ri_to[tbin+1]-1]
-
-;     ; Get the velocities
-;     yveq = veq_yreal_vec[ybin_idx]
-;     oveq = veq_oreal_vec[obin_idx]
-
-;     ; Histogram those bitches up
-;     yveq_hist = histogram(yveq, min=vbinmin, binsize=1)
-;     oveq_hist = histogram(oveq, min=vbinmin, binsize=1)
-
-;     xvec_y = dindgen(n_elements(yveq_hist))*1d0 +vbinmin
-;     xvec_o = dindgen(n_elements(oveq_hist))*1d0 +vbinmin
-
-;     ;young_psf_arr[*,tbin] = yveq_hist/total(yveq_hist, /double)
-;     ;old_psf_arr[*,tbin] = oveq_hist/total(oveq_hist, /double)
-
-;     ypdf = yveq_hist/total(yveq_hist, /double)
-;     opdf = oveq_hist/total(oveq_hist, /double)
-
-;     yconf = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.16,0.84])
-;     oconf = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.16,0.84])
-
-;     yconfp = confidence_interval(yveq, min=0d0, conf_interval=0.68)
-;     oconfp = confidence_interval(oveq, min=0d0, conf_interval=0.68)
-
-;     yconf2 = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.025,0.975])
-;     oconf2 = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.025,0.975])
-
-;     ;if tbin ge 3 then oconf2 = hist_conf_ul(oveq, binsize=0.01, binmin=0, conf_limit=0.95)
-;     ;if tbin ge 10 then yconf2 = hist_conf_ul(yveq, binsize=0.01, binmin=0, conf_limit=0.95)
-
-;     yconf3 = hist_conf(yveq, binsize=0.01, binmin=0, conf_bounds=[0.005,0.995])
-;     oconf3 = hist_conf(oveq, binsize=0.01, binmin=0, conf_bounds=[0.005,0.995])
+!p.multi=[0,5,6]
+  set_plot, 'ps'
+  device, filename = "per_vs_teff_pdf_estimate.eps"
+  device, /color, bits=8
+  device, xs=12,ys=10, /inches
+  loadct,13
 
 
+;window, 0, xs=1600, ys=900
 
-;     yconf_bounds[*,tbin] = yconf
-;     oconf_bounds[*,tbin] = oconf
-
-;     yconf_bounds2[*,tbin] = yconf2
-;     oconf_bounds2[*,tbin] = oconf2
-    
-;     yconf_bounds3[*,tbin] = yconf3
-;     oconf_bounds3[*,tbin] = oconf3
-
-;     yconf_boundsp[*,tbin] = yconfp
-;     oconf_boundsp[*,tbin] = oconfp
-
-;    titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
-
-;     ;plot, veq_vec_2, ypdf, ps=10, xr=[0,75], yr =
-;     ;[0,max(ypdf)>max(opdf)], tit=titstr
-;    ;plot, veq_vec_2, ypdf, ps=10, xr=[0,100], yr = [0,0.14],
-;    ;tit=titstr
-;    plot, xvec_y, ypdf, ps=10, xr=[0,100], yr = [0,0.14], tit=titstr
-;     oplot, replicate(yconfp[0],2), [0,1], linest=2
-;     oplot, replicate(yconfp[1],2), [0,1], linest=2
-;     oplot, replicate(yconf[1],2), [0,1], linest=2, color=200
-;     oplot, replicate(yconf[2],2), [0,1], linest=2, color=200
-    
-;     ;plot, veq_vec_2, opdf, ps=10, tit = strtrim(oconf2,2)+" |
-;     ;"+strtrim(oconf,2)
-;     plot, xvec_o, opdf, ps=10, xr = [0,100], yr=[0,0.14]
-;     oplot, replicate(oconfp[0],2), [0,1], linest=2
-;     oplot, replicate(oconfp[1],2), [0,1], linest=2
-;     oplot, replicate(oconf[1],2), [0,1], linest=2, color=200
-;     oplot, replicate(oconf[2],2), [0,1], linest=2, color=200
-    
-;     print, titstr
-;     print, "Young: "+strtrim(yconfp,2)+" | "+strtrim(yconf,2)
-;     print, "Old:   "+strtrim(oconfp,2)+" | "+strtrim(oconf,2)
-;     print, ''
-
-;     ;  dxstop
-
-; endfor
 
 pbinmin = 0d0
-pbinsize = 0.5d0
+pbinsize = 0.1d0
+pbinmax = 5d2
 
 yconf_bounds1 = dblarr(2, ntbins)
 oconf_bounds1 = dblarr(2, ntbins)
 yconf_bounds2 = dblarr(2, ntbins)
 oconf_bounds2 = dblarr(2, ntbins)
+
+
+decvec = dindgen(9)+1
+
+logpvec0 = [decvec*1d-4, decvec*1d-3, decvec*1d-2, decvec*1d-1, $
+           decvec*1d0, decvec*1d1, decvec*1d2, decvec*1d3]
+
+logpvec = [0d0, decvec*1d-1, decvec*1d0, decvec*1d1, decvec*1d2]
+
+
 
  for tbin=0, ntbins-1 do begin
 
@@ -290,8 +220,8 @@ oconf_bounds2 = dblarr(2, ntbins)
      oper = per_oreal_vec[obin_idx]
 
      ; Histogram those bitches up
-     yper_hist = histogram(yper, min=vbinmin, binsize=pbinsize)
-     oper_hist = histogram(oper, min=vbinmin, binsize=pbinsize)
+     yper_hist = histogram(yper, min=pbinmin, max=pbinmax, binsize=pbinsize)
+     oper_hist = histogram(oper, min=pbinmin, max=pbinmax, binsize=pbinsize)
      ;xvectors
      xvec_y = dindgen(n_elements(yper_hist))*pbinsize + pbinmin
      xvec_o = dindgen(n_elements(oper_hist))*pbinsize + pbinmin
@@ -301,46 +231,49 @@ oconf_bounds2 = dblarr(2, ntbins)
 
      ; Get confidence intervals
      yconf_1sig = confidence_interval(yper, min=pbinmin, conf_interval=0.68)
-     oconf_1sig = confidence_interval(oper, min=pbinmin, conf_interval=0.68)
+;     oconf_1sig = confidence_interval(oper, min=pbinmin, conf_interval=0.68)
 
-     yconf_2sig = confidence_interval(yper, min=pbinmin, conf_interval=0.95)
-     oconf_2sig = confidence_interval(oper, min=pbinmin, conf_interval=0.95)
+;     yconf_2sig = confidence_interval(yper, min=pbinmin, conf_interval=0.95)
+;     oconf_2sig = confidence_interval(oper, min=pbinmin, conf_interval=0.95)
 
      ; Save conf intervals
      yconf_bounds1[*,tbin] = yconf_1sig
-     oconf_bounds1[*,tbin] = oconf_1sig
+;     oconf_bounds1[*,tbin] = oconf_1sig
 
-     yconf_bounds2[*,tbin] = yconf_2sig
-     oconf_bounds2[*,tbin] = oconf_2sig
+;     yconf_bounds2[*,tbin] = yconf_2sig
+;     oconf_bounds2[*,tbin] = oconf_2sig
     
     titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
 
-    plot, xvec_y, ypdf, ps=10, xr=[0,20], tit=titstr
-     oplot, replicate(yconf_1sig[0],2), [0,1], linest=2
-     oplot, replicate(yconf_1sig[1],2), [0,1], linest=2
-     oplot, replicate(yconf_2sig[0],2), [0,1], linest=2, color=200
-     oplot, replicate(yconf_2sig[1],2), [0,1], linest=2, color=200
+    plot, xvec_y, ypdf, ps=10, xr=[0,20], tit=titstr, xtit='Period (days)'
+     oplot, replicate(yconf_1sig[0],2), [0,1], linest=2, color=250
+     oplot, replicate(yconf_1sig[1],2), [0,1], linest=2, color=250
+    ; oplot, replicate(yconf_2sig[0],2), [0,1], linest=2, color=250
+    ; oplot, replicate(yconf_2sig[1],2), [0,1], linest=2, color=250
 
      
-    plot, xvec_o, opdf, ps=10, xr = [0,20]
-     oplot, replicate(oconf_1sig[0],2), [0,1], linest=2
-     oplot, replicate(oconf_1sig[1],2), [0,1], linest=2
-     oplot, replicate(oconf_2sig[0],2), [0,1], linest=2, color=200
-     oplot, replicate(oconf_2sig[1],2), [0,1], linest=2, color=200
+;     plot, xvec_o, opdf, ps=10, xr = [0,20]
+;      oplot, replicate(oconf_1sig[0],2), [0,1], linest=2
+;      oplot, replicate(oconf_1sig[1],2), [0,1], linest=2
+;      oplot, replicate(oconf_2sig[0],2), [0,1], linest=2, color=200
+;      oplot, replicate(oconf_2sig[1],2), [0,1], linest=2, color=200
      
     
      print, titstr
-     print, "Young: "+strtrim(yconf_1sig,2)+" | "+strtrim(yconf_2sig,2)
-     print, "Old:   "+strtrim(oconf_1sig,2)+" | "+strtrim(oconf_2sig,2)
-     print, ''
+     ;print, "Young: "+strtrim(yconf_1sig,2)+" | "+strtrim(yconf_2sig,2)
+     ;print, "Old:   "+strtrim(oconf_1sig,2)+" | "+strtrim(oconf_2sig,2)
+     ;print, ''
 
-     dxstop
+;     dxstop
 
  endfor
 
 
+device, /close_file
+print, "Plot created"
+
 stop  
-;device, /close_file
+
 window, 0, xs=1700, ys=1000
 !p.multi=[0,1,2]
 set_plot, 'x'
