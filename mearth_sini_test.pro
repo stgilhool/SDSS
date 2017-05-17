@@ -37,7 +37,18 @@ v_eq = 2d0*!pi*radius_solar*radius/(m_info.period*day_sec)
 
 vrot = m_info.vrot
 
-vsini = m_info.vsini
+;;; Chnage the vsini
+apg_idx = m_info.apg_idx
+;vs_rstr =
+;mrdfits('/home/stgilhool/APOGEE/vsini_results/logg45_with_fit_full/rfile_master.fits',1)
+vs_rstr = mrdfits('/home/stgilhool/APOGEE/vsini_results/logg45_noscaletest/rfile_master.fits',1)
+vistr = mrdfits('/home/stgilhool/APOGEE/vsini_results/logg45_eptest_4/rfile_master.fits',2)
+
+vi = vistr.valid_flag
+
+vsini = vs_rstr[apg_idx].vsini_best
+
+;vsini = m_info.vsini
 
 type = m_info.type
 ; Get sini for all the stars
@@ -121,12 +132,16 @@ flag_bits = [vsini_warn_bit, vsini_bad_bit]
 ;flag_bits = [vsini_warn_bit, vsini_bad_bit, star_bad_bit]
 flag_dec = long(total(2L^flag_bits))
 
+vi = vi[apg_idx]
+
 ;flag_idx = where((aspcapflag and flag_dec) ne 0, nflg, complement=unflag_idx, ncomplement=nunflg)
 
 
 ;det_idx = where(type eq 'A' or type eq 'B', ndet)
 ;print, ndet
-det_idx = where(type eq 'A' or type eq 'B' and (aspcapflag and flag_dec) eq 0, ndet)
+;det_idx = where(type eq 'A' or type eq 'B' and (aspcapflag and
+;flag_dec) eq 0, ndet)
+det_idx = where((type eq 'A' or type eq 'B') and vi, ndet)
 ;print, ndet
 ;stop
 
@@ -143,6 +158,42 @@ si = vs/avr
 
 e_si = abs(si)*sqrt((e_vs/vs)^2 + (e_avr/avr)^2)
 
+;;; Sort the overlaps by temperature
+
+apgidx = apg_idx[det_idx]
+teff = aspcap_info[apgidx].teff
+tsort = sort(teff)
+teff = teff[tsort]
+vsini = vs[tsort]
+vrot = vr[tsort]
+apgidx = apgidx[tsort]
+
+;;; print the results
+
+print, "    APG_IDX       TEFF         VSINI          VEQ"
+for i = 0, ndet-1 do begin
+print, apgidx[i], teff[i], vsini[i], vrot[i]
+endfor
+
+;;; Output the spectra and information for the overlaps
+
+spec = readin_apo2(files=apgidx)
+
+outstr = []
+for i = 0, ndet-1 do begin
+    struct = create_struct('APG_IDX', spec[i].apg_idx, $
+                           'SPECTRUM', spec[i].spectra, $
+                           'ERROR', spec[i].errors, $
+                           'WL_GRID', spec[i].wl_grid, $
+                           'TEFF', teff[i], $
+                           'VSINI', vsini[i], $
+                           'VROT', vrot[i])
+    outstr = [outstr, struct]
+endfor
+
+mwrfits, outstr, '/home/stgilhool/APOGEE/vsini_results/mearth_comparison.fits', /create
+
+stop
 ; Take just the detections
 drot_idx = where(vs gt 8d0, ndrot, complement=ndrot_idx, ncomplement=nndrot)
 

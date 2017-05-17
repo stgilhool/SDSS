@@ -98,6 +98,8 @@ moment_permass = moment_permass[newg_idx]
 ang_factor = ang_factor[newg_idx]
 
 print, nstars
+
+plot, teff, vsini, xr = [4000,2600], ps=6
 dxstop
 
 

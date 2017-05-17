@@ -69,7 +69,7 @@ return, chi
 end
 
 
-function binomial_stat_errors, n, k, conf_level
+function binomial_stat_errors_backup, n, k, conf_level
 
 ; Check inputs (later)
 

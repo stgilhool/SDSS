@@ -1,10 +1,11 @@
-pro vsini_fit_2
+pro vsini_result_fit_logg5
 
 nspec = 1350
 
 ; Grab APOGEE RESULTS
 apg = readin_apo(hdu=1, nfiles=nspec)
 
+;outdata = []
 
 for fnum = 0, nspec-1 do begin 
     
@@ -13,9 +14,8 @@ for fnum = 0, nspec-1 do begin
     feh_apg = fxpar(apghead, 'RVFEH')
     
 
-    
-    ;f='/home/stgilhool/APOGEE/vsini_results/newtest/rfile'+strtrim(fnum,2)+'.fits'
-    f='/home/stgilhool/APOGEE/vsini_results/logg45/rfile'+strtrim(fnum,2)+'.fits'
+
+    f='/home/stgilhool/APOGEE/vsini_results/logg5/rfile'+strtrim(fnum,2)+'.fits'
 
     if file_test(f) then r = mrdfits(f,0) else begin
         ; outstr = {TEFF_VEC:!values.d_nan, $
@@ -235,8 +235,10 @@ for fnum = 0, nspec-1 do begin
               FEH_APG_FLAG:feh_apg_flag $
              }
     
-    if fnum eq 0 then outdata = replicate(outstr,nspec)
+    if fnum eq 0 then outdata = replicate(outstr, nspec)
     outdata[fnum] = outstr
+    ;outdata = [outdata, outstr]
+    
     ;print, "Best fit is: "
     ;print, "Teff  = " + strtrim(best_teff,2)
     ;print, "FeH   = " + strtrim(best_feh,2)
@@ -253,13 +255,11 @@ for fnum = 0, nspec-1 do begin
    
 endfor
 ;Write results
-;outfile =
-;'/home/stgilhool/APOGEE/vsini_results/newtest/rfile_master.fits'
-outfile = '/home/stgilhool/APOGEE/vsini_results/logg45/rfile_master.fits'
+outfile = '/home/stgilhool/APOGEE/vsini_results/logg5/rfile_master.fits'
 
 mwrfits, outdata, outfile, /create
 
-filenum = lindgen(nspec)
+filenum = lindgen(n_elements(outdata)) 
 plot, filenum, outdata.vsini_best, xs = 2, ps=6, title = 'Vsini for APOGEE M dwarfs', xtitle = 'File Number', ytitle = 'vsini (km/s)', yr = [0,65], xr=[0,1350]
 
 stop

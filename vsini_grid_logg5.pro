@@ -70,10 +70,10 @@ if nancnt gt 0 then begin
     chi2 = chi2+(3*avg_chi*nancnt)
 endif
 
-; plot, apo_obs, /xs, yr=[0.6,1.2]
-; oplot, final_spec, color=200
-; plot, res, ps =3, yr=[-0.3, 0.3], /xs
-
+;  plot, apo_obs, /xs, yr=[0.6,1.2]
+;  oplot, final_spec, color=200
+;  plot, res, ps =3, yr=[-0.3, 0.3], /xs
+;  wait, 0.1
 ;print, p, vsini, chi2
 
 ;return, chi2
@@ -85,7 +85,7 @@ end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pro vsini_grid_2
+pro vsini_grid_logg5
 
 common constants, oversamp, bigc, dlogwl, deltav
 common function_args, xxnorm, lsf, apo_logwl_over, pho_spec_over, apo_obs, apo_err, vsini
@@ -97,8 +97,7 @@ x_max = 3200
 
 ; Constants
 oversamp=7
-;bigc = 3d5 ;km/s
-bigc = !const.c/1d3 ;km/s
+bigc = 3d5 ;km/s
 dlogwl = 6d-6
 deltav = ((10d0^(dlogwl/oversamp))-1d0)*bigc
 nplsf = 141 ; npix lsf kernel
@@ -107,9 +106,8 @@ df = -8d0 ; factor for converting flux in PHOENIX templates
 
 ; Paths
 ;outpath = '/home/stgilhool/APOGEE/vsini_results/mptest/'
-;outpath = '/home/stgilhool/APOGEE/vsini_results/newtest/'
-outpath = '/home/stgilhool/APOGEE/vsini_results/logg45/'
-ppath = '/home/stgilhool/PHOENIX/logg4.5/'
+outpath = '/home/stgilhool/APOGEE/vsini_results/logg5/'
+ppath = '/home/stgilhool/PHOENIX/logg5.0/'
 
 ; Read in apo files for LSF coeffs
 napofiles = 1350
@@ -251,12 +249,17 @@ vsini_asp = vsini_all[sel_idx]
 ;snr_asp = snr_all[sel_idx]
 model_asp = asp_info.aspcap_class
 
+apoidx_vec = lindgen(napofiles)
+; Choose only these files for analysis
+;apoidx_vec = [143,180,281,286,339,424,485,513,520,523,572,573,584,592,622,740,826,840,$
+;              869,884,904,915,944,949,953,958,1038,1076,1132,1142]
 
 
 ;;test
 ;pteff = [3600,3700,3800]
 
-for afil = 0, napofiles-1 do begin
+
+foreach afil, apoidx_vec, aidx do begin
     
     ; Define outfile
     outname = 'rfile' + strtrim(afil,2) + '.fits'
@@ -363,7 +366,7 @@ for afil = 0, napofiles-1 do begin
                 ;chi2 = fval[0]
 
                 r = mpfit('model_observation', guess, maxiter = 300, bestnorm=chi2, /quiet)
-                                
+                !p.multi = 0                
                 ; Record chi2
                 if n_elements(r) eq 1 then chiarr[teff_idx,feh,v] = !values.d_nan $
                   else chiarr[teff_idx,feh,v] = chi2
@@ -376,14 +379,14 @@ for afil = 0, napofiles-1 do begin
             endfor
         endfor
     endfor
-    ;endforeach
+
 ;stop    
     ; Save and write results
     mwrfits, chiarr, outfile, /create, /silent
     file_delete, outfile_temp, /quiet
     print, "Wrote file "+strtrim(afil,2)
     toc, apo_file_time
-endfor
+endforeach
 
 print, "Process finished"
 stop

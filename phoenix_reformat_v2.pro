@@ -41,6 +41,7 @@ foreach teff, pteff, teff_idx do begin
         df = -8d0
         ; Read in PHOENIX model
         readcol, pfile, pwl, c1, c2, c3, c4, format = "D,D,D,D,D"
+        ; wl's are not necessarily in order, so sort all the vectors
         pws = sort(pwl)
         pwl = pwl[pws]
         
@@ -49,6 +50,8 @@ foreach teff, pteff, teff_idx do begin
         c3 = c3[pws]
         c4 = c4[pws]
         
+        ; Take only the WL range that corresponds to APOGEE (plus a
+        ; little more)
         xr_idx = where(pwl ge 1.4d4 and pwl le 1.7d4, nwl)
         print, "Number of APOGEE wl elements: "+strtrim(nwl,2)
         wl = pwl[xr_idx]

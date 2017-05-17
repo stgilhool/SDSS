@@ -198,7 +198,7 @@ endif else begin
 
 
         result = amoeba3(ftol, function_name='cl_lower', p0=[low_guess], $
-                         scale=[scale_low], nmax=10)
+                         scale=[scale_low], nmax=100)
 
         ; check result
         ;if result[0] ne -1 then lower_limit = result[0] else message,
@@ -207,7 +207,10 @@ endif else begin
             ; Check that result works
             chi = cl_lower(result[0])
             ;print, chi
-            if abs(chi-10d0) lt 1d-5 then terminate = 1 else terminate = 0
+            if abs(chi-10d0) lt 1d-5 then terminate = 1 else begin
+                terminate = 0
+                iter++
+            endelse
         endif else begin
             ;message, "bad fit low"
             print, "Bad fit low, trying to calculate upper limit for inverse scenario"
@@ -247,7 +250,7 @@ endif else begin
             endelse
                 
         endelse
-        if terminate eq 0 then begin
+        if iter gt 100 and terminate eq 0 then begin
             print, "USING DUMB STATISTICS"
             nfail = n_in-k_in
             lower_lim = (1d0/n_in)*(double(k_in)-1.96d0*sqrt(nfail*k_in/double(n_in)))
@@ -277,14 +280,17 @@ endif else begin
         
         high_guess = initial_frac > randomu(seed,1)*guess_high*3 < 1d0
         result = amoeba3(ftol, function_name='cl_upper', p0=[high_guess], $
-                         scale=[scale_high], nmax=10)
+                         scale=[scale_high], nmax=100)
         ; check result
         ;if result[0] ne -1 then upper_limit = result[0] else message,
         ;"bad fit high"
         if result[0] ne -1 then begin
             ; Check that result works
             chi = cl_upper(result[0])
-            if abs(chi-10d0) lt 1d-5 then terminate = 1 else terminate = 0
+            if abs(chi-10d0) lt 1d-5 then terminate = 1 else begin
+                iter++
+                terminate = 0
+            endelse
             ;print, chi
         endif else begin
             ;message, "bad fit high"
@@ -293,7 +299,7 @@ endif else begin
             terminate=0
         endelse
         
-        if terminate eq 0 then begin
+        if iter gt 100 and terminate eq 0 then begin
             print, "USING DUMB STATISTICS - UPPER"
             nfail = n_in-k_in
             upper_lim = (1d0/n_in)*(double(k_in)+1.96d0*sqrt(nfail*k_in/double(n_in)))

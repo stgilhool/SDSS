@@ -114,18 +114,37 @@ nd10 = non_det_hist10/total(non_det_hist10, /double)
 nd20 = non_det_hist20/total(non_det_hist20, /double)
 nd100 = non_det_hist100/total(non_det_hist100, /double)
 
+;load rainbow color table with discrete color tags	      
+loadct,39,/silent
+setcolors,/system_variables,/silent,decomposed=0  ;requires setcolors.pro
+
+;plotting parameters to set axes and fonts
+!p.background=0    ;default background color
+!p.color=255
+!p.charsize=1.7		;text default size
+!p.charthick=6		;text default thickness
+!x.thick=5		;thicken x-axis 
+!y.thick=5		;thicken y-axis
+!p.font=1		;set default font
+!p.thick=5		;set default plotting line thickness
+!x.margin=[7,4]
+
+;set psym=8 to circle by default
+circind=findgen(40) * (!pi*2/39.)
+defsysv,'!circ',transpose( [[cos(circind)],[sin(circind)]])  ;user symbol vertices
+usersym,!circ(0,*),!circ(1,*),/fill  ;circle plot
 
  set_plot, 'ps'
- device, filename = "vsini_nondet_simulation.eps"
- device, /color, bits=8
- device, xs=12,ys=10, /inches
- loadct,13
+ device, filename = "vsini_nondet_simulation1.eps"
+ device, /color
+device, xs=10,ys=6, /inches
+; loadct,13
 
 !p.multi = [0,1,3]
 
-plot, nd10, ps=10, title="Prob. of X non-detections given 10 stars",xtit="# Non-detections", xr = [0,5], /xs
-plot, nd20, ps=10, title="Prob. of X non-detections given 20 stars",xtit="# Non-detections", xr = [0,5], /xs
-plot, nd100, ps=10, title="Prob. of X non-detections given 100 stars",xtit="# Non-detections", xr = [0,15], /xs
+plot, nd10, ps=10, title="!4Prob. of X non-detections given 10 stars",xtit="!4# Non-detections", xr = [0,5], /xs
+plot, nd20, ps=10, title="!4Prob. of X non-detections given 20 stars",xtit="!4# Non-detections", xr = [0,5], /xs
+plot, nd100, ps=10, title="!4Prob. of X non-detections given 100 stars",xtit="!4# Non-detections", xr = [0,15], /xs
 
 device, /close_file
 

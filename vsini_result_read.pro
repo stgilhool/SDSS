@@ -1,10 +1,11 @@
-pro vsini_fit_2
+pro vsini_result_read
 
 nspec = 1350
 
 ; Grab APOGEE RESULTS
 apg = readin_apo(hdu=1, nfiles=nspec)
 
+;outdata = []
 
 for fnum = 0, nspec-1 do begin 
     
@@ -14,10 +15,17 @@ for fnum = 0, nspec-1 do begin
     
 
     
-    ;f='/home/stgilhool/APOGEE/vsini_results/newtest/rfile'+strtrim(fnum,2)+'.fits'
-    f='/home/stgilhool/APOGEE/vsini_results/logg45/rfile'+strtrim(fnum,2)+'.fits'
+    ;f='/home/stgilhool/APOGEE/vsini_results/logg45_with_fit_full_justlines/rfile'+strtrim(fnum,2)+'.fits'
+    ;inpath='/home/stgilhool/APOGEE/vsini_results/logg45_with_fit_full_justlines/'
+    inpath = '/home/stgilhool/APOGEE/vsini_results/logg45_with_fit_allspec/'
+    outpath = inpath
+    f = inpath+'rfile'+strtrim(fnum,2)+'.fits'
+    
 
-    if file_test(f) then r = mrdfits(f,0) else begin
+    if file_test(f) then begin
+        r = mrdfits(f,0) 
+        rbest = mrdfits(f,1)
+    endif else begin
         ; outstr = {TEFF_VEC:!values.d_nan, $
 ;                   FEH_VEC:!values.d_nan, $
 ;                   VSINI_VEC:!values.d_nan, $
@@ -51,6 +59,9 @@ for fnum = 0, nspec-1 do begin
 ;                  }
         ; THIS IS WRONG
         outdata[fnum] = outstr
+        outbest[fnum] = beststr
+        nbest_entries = n_elements(beststr) 
+        outbest[fnum].valid_flag = 0
         continue
     endelse
     ;pfeh = ['-4.0', '-3.5', '-3.0', '-2.5', '-2.0', '-1.5', '-1.0',
@@ -139,9 +150,13 @@ for fnum = 0, nspec-1 do begin
     bestspline_vel_idx = lminspline_idx[globsplineidx,1]
     bestspline_vel = vsini_over[bestspline_vel_idx]
     
-    best_globmin = min([globmin, globmin_over, globmin_spline])
+ ;;; ALWAYS USE SPLINE!  POLY IS UNRELIABLE
+    ;best_globmin = min([globmin, globmin_over, globmin_spline])
+    best_globmin = min([globmin, globmin_spline])
     
     ;Determine which method gives the best result
+
+   
     case 1 of
         
         best_globmin eq globmin: begin
@@ -153,20 +168,20 @@ for fnum = 0, nspec-1 do begin
         end
 
         best_globmin eq globmin_over and best_globmin eq globmin_spline: begin
-            best_best_teff = bestover_teff
-            best_best_feh = bestover_feh
-            best_best_vel = bestover_vel
-            best_best_chi2 = globmin_over
+            best_best_teff = bestspline_teff
+            best_best_feh = bestspline_feh
+            best_best_vel = bestspline_vel
+            best_best_chi2 = globmin_spline
             model_best = "BOTH"
         end
 
-        best_globmin eq globmin_over: begin
-            best_best_teff = bestover_teff
-            best_best_feh = bestover_feh
-            best_best_vel = bestover_vel
-            best_best_chi2 = globmin_over
-            model_best = "POLY"
-        end
+        ; best_globmin eq globmin_over: begin
+;             best_best_teff = bestover_teff
+;             best_best_feh = bestover_feh
+;             best_best_vel = bestover_vel
+;             best_best_chi2 = globmin_over
+;             model_best = "POLY"
+;         end
 
         best_globmin eq globmin_spline: begin
             best_best_teff = bestspline_teff
@@ -235,8 +250,30 @@ for fnum = 0, nspec-1 do begin
               FEH_APG_FLAG:feh_apg_flag $
              }
     
-    if fnum eq 0 then outdata = replicate(outstr,nspec)
+    ;;; BEST STUFF    
+    ;;; Get the valid entries
+    valid_idx = where(rbest.valid_flag eq 1, nvalid)
+
+    ; Save the structure that corresponds to the best fit
+    if nvalid gt 0 then begin
+        rb = rbest[valid_idx]
+        cbest_idx = where(rb.chi2_best eq min(rb.chi2_best, /nan), ncbest)
+        if ncbest ne 1 then message, "problem finding best chi2"
+        if rb[cbest_idx].chi2_best eq 0 then message, "Error: best chi2 = 0"
+        beststr = rb[cbest_idx]
+    endif else message, "No valid flags"
+
+
+
+
+    if fnum eq 0 then begin
+        outdata = replicate(outstr, nspec)
+        outbest = replicate(beststr, nspec)
+    endif
     outdata[fnum] = outstr
+    outbest[fnum] = beststr
+    ;outdata = [outdata, outstr]
+    
     ;print, "Best fit is: "
     ;print, "Teff  = " + strtrim(best_teff,2)
     ;print, "FeH   = " + strtrim(best_feh,2)
@@ -251,15 +288,24 @@ for fnum = 0, nspec-1 do begin
     ;oplot, vsini_over, r_over[globoveridx,bestover_feh_idx,*], color=200
     ;stop 
    
+
+    ; plot, outstr.vsini_over_vec, outstr.chivel_spline
+;     oplot, outstr.vsini_over_vec, outstr.chivel_poly, color=200
+;     oplot, outstr.vsini_vec, outstr.chivel_grid, ps=6
+;     oplot, [beststr.vsini_best], [beststr.chi2_best], ps=6, color=200
+
+;     dxstop
+    
 endfor
 ;Write results
 ;outfile =
-;'/home/stgilhool/APOGEE/vsini_results/newtest/rfile_master.fits'
-outfile = '/home/stgilhool/APOGEE/vsini_results/logg45/rfile_master.fits'
+;'/home/stgilhool/APOGEE/vsini_results/logg45_with_fit_full_justlines/rfile_master.fits'
+outfile = outpath+'rfile_master.fits'
 
 mwrfits, outdata, outfile, /create
+mwrfits, outbest, outfile
 
-filenum = lindgen(nspec)
+filenum = lindgen(n_elements(outdata)) 
 plot, filenum, outdata.vsini_best, xs = 2, ps=6, title = 'Vsini for APOGEE M dwarfs', xtitle = 'File Number', ytitle = 'vsini (km/s)', yr = [0,65], xr=[0,1350]
 
 stop

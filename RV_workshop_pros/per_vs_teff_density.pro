@@ -1,8 +1,8 @@
 pro per_vs_teff_density
 
-restore, 'veq_realization_data.sav'
+restore, '../veq_realization_data.sav'
 ;info = mrdfits('veq_vs_teff_stepfit_results.fits',1)
-info = mrdfits('veq_vs_teff_smoothfit_results.fits',1)
+info = mrdfits('../veq_vs_teff_smoothfit_results.fits',1)
 
 
 vbinsize = 0.05d0
@@ -70,7 +70,7 @@ old_det_idx = where(qage gt 2 and vsini gt 5, nodet)
 
 
 
-info2 = mrdfits('veq_vs_teff_stepfit_tgrid_results2.fits',1)
+info2 = mrdfits('../veq_vs_teff_stepfit_tgrid_results2.fits',1)
 
 vbinsize = 0.05d0
 tbinsize = 25d0
@@ -135,7 +135,7 @@ veq_yreal_vec = reform(veq_yreal_all, nyoung_tot)
 per_yreal_vec = reform(per_yreal_all, nyoung_tot)
 
 ;teff_bvec = lindgen(nbins_teff+1)*100+2600
-tbinsize=50
+tbinsize=100
 
 ty_hist = histogram(teff_yreal_all, min=tbinmin, binsize=tbinsize, max=3999.999, reverse_indices=ri_ty)
 
@@ -153,6 +153,8 @@ nold_tot = nold*nsamples
 teff_oreal_vec = reform(teff_oreal_all, nold_tot)
 veq_oreal_vec = reform(veq_oreal_all, nold_tot)
 per_oreal_vec = reform(per_oreal_all, nold_tot)
+
+
 
 to_hist = histogram(teff_oreal_all, min=tbinmin, binsize=tbinsize, max=3999.999, reverse_indices=ri_to)
 
@@ -180,7 +182,7 @@ veq_vec_2 = dindgen(1001)
 
 
 ;!p.multi=[0,5,6]
-!p.multi=[0,3,4]
+!p.multi=[0,3,3]
   set_plot, 'ps'
   device, filename = "per_vs_teff_pdf_estimate_cool.eps"
   device, /color, bits=8
@@ -211,7 +213,7 @@ logpvec = [0d0, decvec*1d-1, decvec*1d0, decvec*1d1, decvec*1d2]
 
 
  ;for tbin=0, ntbins-1 do begin
-for tbin=0, 11 do begin
+for tbin=5, 13 do begin
 
      ; Get the indices for the temperature bin
      ybin_idx = ri_ty[ri_ty[tbin]:ri_ty[tbin+1]-1]
@@ -247,9 +249,9 @@ for tbin=0, 11 do begin
     
     titstr = "Teff: "+strtrim(tbin_vec[tbin],2)+" - "+strtrim(tbin_vec[tbin+1],2)+" K"
 
-    plot, xvec_y, ypdf, ps=10, xr=[0,10], tit=titstr, xtit='Period (days)'
-     oplot, replicate(yconf_1sig[0],2), [0,1], linest=2, color=250
-     oplot, replicate(yconf_1sig[1],2), [0,1], linest=2, color=250
+    plot, xvec_y, ypdf, ps=10, xr=[0,10], tit=titstr, xtit='Period (days)', charthick=6, charsize=2, thick=6
+     oplot, replicate(yconf_1sig[0],2), [0,1], linest=2, color=250, thick=3
+     oplot, replicate(yconf_1sig[1],2), [0,1], linest=2, color=250, thick=3
     ; oplot, replicate(yconf_2sig[0],2), [0,1], linest=2, color=250
     ; oplot, replicate(yconf_2sig[1],2), [0,1], linest=2, color=250
 
@@ -293,9 +295,9 @@ stop
 
 
 density, teff_realizations[*,young_star_idx], per_realizations[*,young_star_idx], $
-  /ylog, xr=[2600,4000], yr=[1d-2,1d2],/xs, /dlog, drange=[5,1000], ct=-1, $
+  /ylog, xr=[4000,2600], yr=[1d-2,1d2],/xs, /dlog, drange=[5,1000], ct=-1, $
   ytit="Period (days)", $
-  title = "Age < 2 Gyrs", charsize=1.5
+  title = "Age < 2 Gyrs", charsize=1.5, charthick=6
 ;overplot the confidence intervals
 ; loadct, 13
 ; for tbin = 0, ntbins-1 do begin
@@ -329,9 +331,9 @@ density, teff_realizations[*,young_star_idx], per_realizations[*,young_star_idx]
 
 
 density, teff_realizations[*,old_star_idx], per_realizations[*,old_star_idx], /ylog, $
-  xr=[2600,4000], yr=[1d-2,1d2], /xs, /dlog, drange=[5,1000], ct=-1, $
+  xr=[4000,2600], yr=[1d-2,1d2], /xs, /dlog, drange=[5,1000], ct=-1, $
   xtit="Effective Temperature (K)", $
-  title = "Age > 2 Gyrs", charsize=1.5
+  title = "Age > 2 Gyrs", charsize=1.5, charthick=6
 ;overplot the confidence intervals
 ; loadct, 13
 ; for tbin = 0, ntbins-1 do begin
