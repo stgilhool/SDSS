@@ -1,10 +1,89 @@
 ; Using code from vsini_correlate_test and vsini_correlate_test2, we
 ; run the cross-correlation procedure from Diaz et al, and test the
 ; recoverability of Vsini for PHOENIX templates as a function of temperature
+function vct_find_zeroes_2, xvec, yvec
+
+
+show=0
+
+epsilon = 0.6d0
+k1 = 0.60975d0 + 0.0639d0*epsilon + 0.0205*epsilon^2 + 0.021*epsilon^3
+
+; Slide a window along and find local minima
+
+ysmooth = gauss_smooth(yvec, 1)
+
+window_width = 21L
+window_idx_x = lindgen(window_width)-(window_width/2)
+
+npix_search = 1000L
+
+minidx_vec = dblarr(npix_search)
+max_vec = dblarr(npix_search)
+
+for i = 0, npix_search-1 do begin
+
+    window_idx = window_idx_x + i
+
+    ; Get the minima
+    minval = min(ysmooth[window_idx], minidx)
+    min_idx = window_idx[minidx]
+    ; Take the max on either side of the window and average
+    maxval_minus = max(ysmooth[window_idx[0:(window_width/2)]])
+    maxval_plus = max(ysmooth[window_idx[(window_width/2)+1:*]])
+    maxval_avg = mean([maxval_minus,maxval_plus])
+    
+    minidx_vec[i] = min_idx
+    max_vec[i] = maxval_avg
+
+endfor
+
+hist = histogram(minidx_vec, min=0, reverse_indices=ri)
+minima_idx = where(hist gt (window_width/2)+1, nminima)
+
+if nminima gt 0 then begin
+   
+    minima = ysmooth[minima_idx]
+    maxima = max_vec[minima_idx]
+    
+    ; Calculate the "depth"
+    peak_depth = (maxima-minima)/abs(maxima)
+
+    ; Take only peaks that are 10%
+;     plot, xvec*1d3, ysmooth+10, xr=[0,100]
+;     oplot, xvec[0:n_elements(hist)-1]*1d3, hist, ps=10, $
+;       thick=2, co=!red
+;     for w = 0, nminima-1 do begin
+;         oplot, replicate(xvec[minima_idx[w]],2)*1d3, [-100,100], thick=1, co=!blue
+;         print, peak_depth[w]
+;         dxstop
+;     endfor
+; dxstop
+    real_minima_idx = where(peak_depth gt 0.1, nreal)
+    if nreal gt 0 then begin
+        first_peak_idx = minima_idx[real_minima_idx[0]]
+        sigpeak = xvec[first_peak_idx]
+        vsini = k1/sigpeak
+        ;print, vsini
+        ;dxstop
+    endif
+    
+endif
+
+
+
+;plot, xvec[0:1000]*1d3, ysmooth[0:1000] + 10, xr=[0,100]
+
+;oplot, xvec[om:om+n_elements(hist)-1]*1d3, histogram(minidx_vec), ps=10
+;dxstop
+return, sigpeak
+
+end
+
 
 function vct_find_zeroes, xvec, yvec
 
-show=1
+show=0
 
 epsilon = 0.6d0
 k1 = 0.60975d0 + 0.0639d0*epsilon + 0.0205*epsilon^2 + 0.021*epsilon^3
@@ -123,7 +202,7 @@ end
 pro vsini_correlate_templatetest
 
 display = 0
-ps=0
+ps=1
 
 ;load rainbow color table with discrete color tags	      
 loadct,39,/silent
@@ -204,7 +283,8 @@ vsini_sigvec = k1/(sigvec)
 
 
 ; Step through Temps and Vsini values and do the correlations
-vsini_known_vec = [25d0, 20d0, 15d0, 10d0, 8d0, 5d0]
+;vsini_known_vec = [25d0, 20d0, 15d0, 10d0, 8d0, 5d0]
+vsini_known_vec = [15d0, 14d0, 13d0, 12d0, 11d0, 10d0, 9d0, 8d0, 7d0, 6d0, 5d0]
 
 nvsini = n_elements(vsini_known_vec)
 
@@ -218,7 +298,7 @@ sig_results = dblarr(nteff, nvsini)
 
 
 if ps then begin
-    psopen, 'recoverability_test2.eps', /encapsulated, xs=10, ys=7, /inches, /color
+    psopen, 'recoverability_test4.eps', /encapsulated, xs=10, ys=7, /inches, /color
     !p.multi=[0,5,3]
 endif
 
@@ -233,7 +313,9 @@ foreach teff, teff_vec, tidx do begin
     pho_over = pho_over_str.spec
     pho_over_convol = convol(pho_over, lsf, /edge_wrap)
     if ps then begin
-        plot, vsini_known_vec, vsini_known_vec, xr=[0,26], yr=[0,26], /ys, /xs, $
+        ;plot, vsini_known_vec, vsini_known_vec, xr=[0,26],
+        ;yr=[0,26], /ys, /xs, $
+        plot, vsini_known_vec, vsini_known_vec, xr=[5,16], yr=[5,16], /ys, /xs, $
           /nodata, $
           xtit = "True Vsini", ytit="Recovered Vsini", $
           tit = "Vsini Recovery for Teff = "+strtrim(teff,2)
@@ -342,9 +424,12 @@ foreach teff, teff_vec, tidx do begin
         ; Test G against known rotation kernel
 
         g_known = make_broadening_kernel(vsini_known, oversamp=99)
-        
+
         g_test = g_known.lsf_rot
         g_test_vel = g_known.velgrid
+
+        g_interp = interpol(g_test, g_test_vel, vel_x_over)
+
         
         ; Clean G by making it fall to 0 exponentially past 100 km/s
         g_out = g * decay_vec
@@ -360,25 +445,46 @@ foreach teff, teff_vec, tidx do begin
 
         gfft_results[tidx, i, *] = glog_fft
 
+
+        ; Compare with known kernel
+        gcomp = g_interp * max(g_out)/max(g_interp)
+        gcomp_fft = fft(gcomp, /double)
+        gcomp_fft_amp = sqrt(real_part(gcomp_fft)^2 + imaginary(gcomp_fft)^2)
+        gcomplog_fft = alog10(gcomp_fft_amp)
+
         ; put LSF on velgrid
         lsf_over = interpol(lsf, lsfx, xxnorm)
-        lsf_fft = fft(lsf_over, /double)
+        ;lsf_comp = lsf_over * max(g_out)/max(lsf_over)
+        lsf_comp = lsf_over
+        lsf_fft = fft(lsf_comp, /double)
         lsf_fft_amp = sqrt(real_part(lsf_fft)^2 + imaginary(lsf_fft)^2)
         
         lsflog_fft = alog10(lsf_fft_amp)
 
+        complog_fft = alog10(lsf_fft_amp*gcomp_fft_amp)
+
+        
+
+        ; plot, sigvec*1d3, glog_fft, xr=[0,100], yr=[-10,-2]
+;         oplot, sigvec*1d3, gcomplog_fft, color=!red
+;         oplot, sigvec*1d3, lsflog_fft, color=!orange
+;         oplot, sigvec*1d3, gcomplog_fft + lsflog_fft, color=!blue
+;         dxstop
+
         ;;; Find the location (and Vsini) of first zero
         print, vsini_known
-        sig_0 = vct_find_zeroes(sigvec, glog_fft)
+        sig_0 = vct_find_zeroes_2(sigvec, glog_fft)
         
         sig_results[tidx,i] = sig_0[0]
 
         vsini_recovered = k1/sig_0
 
+        
+
         ;;; PLOT
         ;oplot, [vsini_known], [vsini_recovered], ps=8, color=!red
         if ps then begin
-            oplot, replicate(vsini_known,n_elements(sig_0)) , k1/sig_0, ps=8, color=!red
+            oplot, replicate(vsini_known,n_elements(sig_0)) , [k1/sig_0], ps=8, color=!red
         endif
     endfor
     
