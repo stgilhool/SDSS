@@ -12,6 +12,7 @@ k1 = 0.60975d0 + 0.0639d0*epsilon + 0.0205*epsilon^2 + 0.021*epsilon^3
 ; Slide a window along and find local minima
 
 ysmooth = gauss_smooth(yvec, 1.5)
+;ysmooth = smooth(yvec, 3)
 
 window_width = 21L
 window_idx_x = lindgen(window_width)-(window_width/2)
@@ -259,8 +260,8 @@ apg_info = readin_apo2(files=files, hdu=8)
 ;dxstop, 'lsf_info'
 nfiles = n_elements(files) 
 
-xmin=4800
-xmax=5800
+xmin=7000
+xmax=8000
 
 ; Make wl grid
 xpixels = lindgen(xmax-xmin+1)+xmin
@@ -362,7 +363,7 @@ for specnum = 0, nfiles-1 do begin
     
     ; Data
     apo_spec = apg_info[specnum].spectra[xmin:xmax]
-    apo_spec_over = interpol(apo_spec, x, xx)
+    apo_spec_over_raw = interpol(apo_spec, x, xx)
     
     apo_mask_str = readin_apo2(files=[files[specnum]], hdu=3)
     apo_mask_arr = *apo_mask_str.output
@@ -377,26 +378,21 @@ for specnum = 0, nfiles-1 do begin
     mask_cp = mask
     if nmask gt 0 then mask[mask_idx] = 1
     mask = byte(mask)
-    ; "oversample" the mask
-    mask_over = reform(rebin(transpose(mask),oversamp,npix),npix_over)
-
     
-    ; For now, interpolate over bad pixels
-    nan_spec_idx = where(mask_over eq 1, nnan)
-    if nnan gt 0 then begin
-        apo_spec_over_cp = apo_spec_over
-        apo_spec_over[nan_spec_idx] = !values.d_nan
-        apo_spec_over_nan = apo_spec_over
-        apo_spec_over = interpol(apo_spec_over, xx, xx, /nan)
-    endif
+    apo_spec_cp = apo_spec
+    apo_spec_nan = apo_spec
+    apo_spec_nan[mask_idx] = !values.d_nan
+    ;Interpolate
+    apo_spec = interpol(apo_spec_nan, x, x, /nan)
 
-    plot, wl_grid_over, apo_spec_over_cp, /xs, yr=[0.6, 1.1], /ys, thick=7
+    ; NOW, oversample
+    apo_spec_over = interpol(apo_spec, x, xx)
     
-    oplot, wl_grid_over, apo_spec_over, color=!red, thick=5
-    oplot, wl_grid_over, apo_spec_over_nan, color=!black, thick=2
-
-    dxstop, 'nnan'
-    
+    plot, wl_grid_over, apo_spec_over_raw, /xs, yr=[0.6, 1.1], /ys, thick=7
+    oplot, wl_grid, apo_spec_nan, ps=8, color=!red
+    oplot, wl_grid_over, apo_spec_over, color=!blue, thick=1
+    dxstop
+   
     if display then begin
         plot, wl_grid_over, apo_spec_over, thick=2, $
           tit='APG spec and Template spec, both with LSF'
