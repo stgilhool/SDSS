@@ -87,6 +87,7 @@ readcol, simfile, $
   FORMAT = "I,A,A,A,A,A,F,F,F,F,F,A,A,I,I", $
   SKIPLINE = 1, $
   DELIMITER = "|", $
+  /NAN, $
   COUNT=NSTARS_SIM
 
 
@@ -97,26 +98,45 @@ outstruct = []
 
 for i = 0, nstars-1 do begin
 
+    ; Check that ID's match
+    ; print, id_2m[i], ' ', sim_id_2m[i]
+;     print, id_alt1[i], ' ', sim_id_alt1[i]
+;     print, id_alt2[i], ' ', sim_id_alt2[i]
+;    if (sim_id_2m[i] ne id_2m[i]) or $
+;    (sim_id_alt1[i] ne id_alt1[i]) or $
+;    (sim_id_alt2[i] ne id_alt2[i]) then $
+;      message, "ID mismatch"
+
     ; Convert RA and DEC from sexigesimal to decimal
     ra_i = ten(ra[i])*360d0/24d0
     dec_i = ten(dec[i])
-    
+
+    sim_ra_i = ten(sim_ra[i])*360d0/24d0
+    sim_dec_i = ten(sim_dec[i])
+
     ; Look up what the reference is
     refnum = reference[i]-1
 
-    struct_i = {ID_2M:ID_2M[i], $
+    struct_i = {ID_2M:SIM_ID_2M[i], $
                 ID_ALT1:ID_ALT1[i], $
                 ID_ALT2:ID_ALT2[i], $
                 RA:ra_i, $
                 DEC:dec_i, $
+                RA_SBD:sim_ra[i], $
+                DEC_SBD:sim_dec[i], $
+                UMAG_SBD:SIM_UMAG[i], $
+                BMAG_SBD:SIM_BMAG[i], $
+                VMAG_SBD:SIM_VMAG[i], $
+                RMAG_SBD:SIM_RMAG[i], $
+                IMAG_SBD:SIM_IMAG[i], $
                 VMAG:VMAG[i], $
-                M_V:M_V[i], $
                 K_S:K_S[i], $
                 V_K:V_K[i], $
                 PARALLAX:PARALLAX[i], $
                 E_PARALLAX:E_PARALLAX[i], $
+                SP_TYPE:SP_TYPE[i], $
                 VSINI:VSINI[i], $
-                REF_NUM:refnum, $
+                REF_NUM_DAV:refnum, $
                 REF_NAME:refname[refnum], $
                 BIBCODE:bibcode[refnum], $
                 UPPER_LIMIT:UPPER_LIMIT[i]}
