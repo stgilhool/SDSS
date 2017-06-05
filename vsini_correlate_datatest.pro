@@ -1,6 +1,71 @@
 ; Using code from vsini_correlate_test and vsini_correlate_test2, we
 ; run the cross-correlation procedure from Diaz et al, and test the
 ; recoverability of Vsini for PHOENIX templates as a function of temperature
+function vcorr_model_template, params, wl_grid=wl_grid, temp_spec=temp_spec
+
+wl_shift = params[0]
+c0 = params[1]
+c1 = params[2]
+if n_params() eq 4 then scale = params[3]
+
+; Shift wavelength of template
+wl_grid_shifted = wl_grid * (1d0 + (wl_shift/(!const.c/1d3)))
+
+spec_shifted = interpol(temp_spec, wl_grid_shifted, wl_grid)
+
+; Adjust the continuum
+npix = n_elements(spec_shifted) 
+npix_half =  npix/2
+continuum_orig = replicate(1d0, npix) 
+xnorm = (dindgen(n_elements(spec_shifted))-npix_half)/npix_half
+
+cont_corr = poly(xnorm, [c0,c1])
+spec_shifted_2 = spec_shifted * cont_corr
+
+; If necessary, scale the template
+; Downsample
+
+spec_model = spec_shifted_2
+
+return, spec_model
+
+end
+
+
+function fit_template_mpfit, params, apo_spec=apo_spec, apo_err=apo_err, temp_spec=temp_spec, mask=mask, wl_grid=wl_grid
+
+model_spec = vcorr_model_template(params, temp_spec=temp_spec, wl_grid=wl_grid)
+
+; Deviates
+dev = (apo_spec-model_spec)/apo_err
+
+; Mask bad pixels
+mask_pix = where(mask eq 1, nmask)
+if nmask gt 0 then dev[mask_pix] = 0d0
+
+; Mask the ends, as well
+dev[0:9] = 0d0
+dev[-10:-1] = 0d0
+
+comp_spec = model_spec
+if nmask gt 0 then comp_spec[mask_pix]=!values.d_nan
+
+plot, wl_grid, apo_spec, /xs, yr=[0.5,1.1], /ys, thick=1
+oplot, wl_grid, comp_spec, color=!red, ps=-6, thick=1
+wait, 0.1
+
+
+; Return the deviates
+return, dev
+
+end
+
+function fit_template_amoeba, params
+common amoeba_info
+
+
+end
+
 function vct_find_zeroes_2, xvec, yvec
 
 
@@ -333,6 +398,8 @@ for specnum = 0, nfiles-1 do begin
     teff = teff_vec[specnum]
 
     ; Load the PHOENIX template
+    pho_spec_str = readin_phoenix([teff],['-0.0'],['4.5'],wl_grid)
+    pho_spec = pho_spec_str.spec
     pho_over_str = readin_phoenix([teff],['-0.0'],['4.5'],wl_grid_over)
     pho_over = pho_over_str.spec
     pho_over_convol = convol(pho_over, lsf, /edge_wrap)
@@ -363,6 +430,7 @@ for specnum = 0, nfiles-1 do begin
     
     ; Data
     apo_spec = apg_info[specnum].spectra[xmin:xmax]
+    apo_err = apg_info[specnum].errors[xmin:xmax]
     apo_spec_over_raw = interpol(apo_spec, x, xx)
     
     apo_mask_str = readin_apo2(files=[files[specnum]], hdu=3)
@@ -400,19 +468,54 @@ for specnum = 0, nfiles-1 do begin
         dxstop
     endif
     
+
+    ;;; FIT the data to the model (scale, wl_shift and normalize)
+    ;;; before cross_correlating
+    ;; Inputs: apo_spec, mask, apo pho_over, params(s, wl, n0, n1)
+    functargs = {apo_spec:apo_spec_cp, $
+                 apo_err:apo_err, $
+                 temp_spec:pho_spec, $
+                 wl_grid:wl_grid, $
+                 mask:mask}
+
+    parinfo_str = {value:0d0, $
+                   limited:[0,0], $
+                   limits:[0d0,0d0], $
+                   step:0d0}
+
+    nfree = 3
+    parinfo = replicate(parinfo_str, nfree)
+    parinfo[0].limited=[1,1]
+    parinfo[0].limits=[-5d0,5d0]
+    parinfo[0].step = 0.05d0
+    parinfo[1].limited=[1.1]
+    parinfo[1].limits=[0.9,1.1]
+    parinfo[1].value = 1d0
+    parinfo[2].step = 0.1d0
+
+                   
+    r = mpfit('fit_template_mpfit', functargs=functargs, parinfo=parinfo, $
+              status=status, bestnorm=chi2)
     
+    spec_model = vcorr_model_template(r, wl_grid=wl_grid, temp_spec=pho_spec)
+    spec_model_over = interpol(spec_model, x, xx)
+    ;dxstop, 'r', 'status', 'chi2'
     ;;; Make CCF_DT
     
-    ccf_dt_over_0 = c_correlate(apo_spec_over, pho_over, lag_over,/double)
+    ;ccf_dt_over_0 = c_correlate(apo_spec_over, pho_over,
+    ;lag_over,/double)
+    ccf_dt_over_0 = c_correlate(apo_spec_over, spec_model_over, lag_over,/double)
     ;ccf_dt_over = c_correlate(apo_spec_over, pho_over_convol, lag_over, /double)
     
             
     
     ;;; Recenter
-    lagmax = where(ccf_dt_over_0 eq max(ccf_dt_over_0))
-    pho_over_shift = shift(pho_over, npix_over/2 - lagmax)
+    ; lagmax = where(ccf_dt_over_0 eq max(ccf_dt_over_0))
+;     pho_over_shift = shift(pho_over, npix_over/2 - lagmax)
 
-    ccf_dt_over = c_correlate(apo_spec_over, pho_over_shift, lag_over,/double)
+    ;ccf_dt_over = c_correlate(apo_spec_over, pho_over_shift,
+    ;lag_over,/double)
+    ccf_dt_over = ccf_dt_over_0
     if display then begin
         plot, vel_x_over, ccf_dt_over_0, xr=[-100,100], $
           tit='CCF_DT and recentered CCF_DT'
