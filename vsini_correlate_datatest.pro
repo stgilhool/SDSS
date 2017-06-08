@@ -6,7 +6,7 @@ function vcorr_model_template, params, wl_grid=wl_grid, temp_spec=temp_spec
 wl_shift = params[0]
 c0 = params[1]
 c1 = params[2]
-if n_params() eq 4 then scale = params[3]
+if n_elements(params) eq 4 then scale = params[3]
 
 ; Shift wavelength of template
 wl_grid_shifted = wl_grid * (1d0 + (wl_shift/(!const.c/1d3)))
@@ -23,9 +23,14 @@ cont_corr = poly(xnorm, [c0,c1])
 spec_shifted_2 = spec_shifted * cont_corr
 
 ; If necessary, scale the template
+if n_elements(params) eq 4 then begin
+    spec_scaled = spec_shifted_2^scale 
+endif else begin
+    spec_scaled = spec_shifted_2
+endelse
 ; Downsample
 
-spec_model = spec_shifted_2
+spec_model = spec_scaled
 
 return, spec_model
 
@@ -51,7 +56,7 @@ comp_spec = model_spec
 if nmask gt 0 then comp_spec[mask_pix]=!values.d_nan
 
 plot, wl_grid, apo_spec, /xs, yr=[0.5,1.1], /ys, thick=1
-oplot, wl_grid, comp_spec, color=!red, ps=-6, thick=1
+oplot, wl_grid, comp_spec, color=!red, ps=-8, thick=1, symsize=0.2
 wait, 0.1
 
 
@@ -319,14 +324,14 @@ logwl0 = 4.179d0
 
 files = [289,1142]
 teff_vec = [3100,3200]
-vsini_known_vec = [25d0,24d0]
+vsini_known_vec = [25d0,25d0]
 apg_info = readin_apo2(files=files, hdu=8)
 ;lsf_info = *apg_info[files].output
 ;dxstop, 'lsf_info'
 nfiles = n_elements(files) 
 
-xmin=7000
-xmax=8000
+xmin=6428
+xmax=8156
 
 ; Make wl grid
 xpixels = lindgen(xmax-xmin+1)+xmin
@@ -403,6 +408,9 @@ for specnum = 0, nfiles-1 do begin
     pho_over_str = readin_phoenix([teff],['-0.0'],['4.5'],wl_grid_over)
     pho_over = pho_over_str.spec
     pho_over_convol = convol(pho_over, lsf, /edge_wrap)
+
+    pho_spec_convol = downsample_tophat(pho_over_convol, oversamp)
+
     if ps then begin
         ;plot, vsini_known_vec, vsini_known_vec, xr=[0,26],
         ;yr=[0,26], /ys, /xs, $
@@ -450,6 +458,8 @@ for specnum = 0, nfiles-1 do begin
     apo_spec_cp = apo_spec
     apo_spec_nan = apo_spec
     apo_spec_nan[mask_idx] = !values.d_nan
+    apo_err_cp = apo_err
+    apo_err[mask_idx] = 1d8
     ;Interpolate
     apo_spec = interpol(apo_spec_nan, x, x, /nan)
 
@@ -474,7 +484,7 @@ for specnum = 0, nfiles-1 do begin
     ;; Inputs: apo_spec, mask, apo pho_over, params(s, wl, n0, n1)
     functargs = {apo_spec:apo_spec_cp, $
                  apo_err:apo_err, $
-                 temp_spec:pho_spec, $
+                 temp_spec:pho_spec_convol, $
                  wl_grid:wl_grid, $
                  mask:mask}
 
@@ -483,7 +493,7 @@ for specnum = 0, nfiles-1 do begin
                    limits:[0d0,0d0], $
                    step:0d0}
 
-    nfree = 3
+    nfree = 4
     parinfo = replicate(parinfo_str, nfree)
     parinfo[0].limited=[1,1]
     parinfo[0].limits=[-5d0,5d0]
@@ -492,13 +502,34 @@ for specnum = 0, nfiles-1 do begin
     parinfo[1].limits=[0.9,1.1]
     parinfo[1].value = 1d0
     parinfo[2].step = 0.1d0
+    parinfo[3].value=1d0
+    parinfo[3].step = 0.05d0
 
                    
     r = mpfit('fit_template_mpfit', functargs=functargs, parinfo=parinfo, $
               status=status, bestnorm=chi2)
     
     spec_model = vcorr_model_template(r, wl_grid=wl_grid, temp_spec=pho_spec)
-    spec_model_over = interpol(spec_model, x, xx)
+
+    ; Mask areas of mismatch
+    res = apo_spec - spec_model
+    res[mask_idx] = !values.d_nan
+    median_res = median(res)
+    bad_res_idx = where(res gt 0.9*max(res,/nan), nbad)
+    if nbad gt 0 then begin
+        spec_model[bad_res_idx] = apo_spec[bad_res_idx]
+        ; don't know why this next line is here...
+        apo_spec_over = interpol(apo_spec, x, xx)
+    endif
+
+        spec_model_over = interpol(spec_model, x, xx)
+
+    if display then begin
+        plot, apo_spec_over, tit="masked spectra"
+        oplot, spec_model_over, color=!red, thick=2
+        dxstop
+    endif
+        
     ;dxstop, 'r', 'status', 'chi2'
     ;;; Make CCF_DT
     
@@ -510,19 +541,20 @@ for specnum = 0, nfiles-1 do begin
             
     
     ;;; Recenter
-    ; lagmax = where(ccf_dt_over_0 eq max(ccf_dt_over_0))
-;     pho_over_shift = shift(pho_over, npix_over/2 - lagmax)
+    lagmax = where(ccf_dt_over_0 eq max(ccf_dt_over_0))
+    pho_over_shift = shift(pho_over, npix_over/2 - lagmax)
 
-    ;ccf_dt_over = c_correlate(apo_spec_over, pho_over_shift,
-    ;lag_over,/double)
-    ccf_dt_over = ccf_dt_over_0
+    ccf_dt_over = c_correlate(apo_spec_over, pho_over_shift, lag_over,/double)
+    ccf_dt_over2 = ccf_dt_over_0
     if display then begin
         plot, vel_x_over, ccf_dt_over_0, xr=[-100,100], $
           tit='CCF_DT and recentered CCF_DT'
         oplot, vel_x_over, ccf_dt_over, color=200
+        oplot, shift(vel_x_over, npix_over/2 + lagmax), ccf_dt_over2, color=!red
         dxstop
     endif
 
+    ccf_dt_over = ccf_dt_over2
 
     ; Make CCF_TT
     ccf_tt_over = a_correlate(pho_over, lag_over, /double)
@@ -531,7 +563,14 @@ for specnum = 0, nfiles-1 do begin
     ccf_tt_over_cp = ccf_tt_over
     ccf_tt_over = convol(ccf_tt_over_cp, lsf, /edge_wrap)
     
-    
+    if display then begin
+        plot, vel_x_over, ccf_tt_over_cp, xr=[-50,50], tit="CCF_TT and CCF_TT*LSF"
+        oplot, vel_x_over, ccf_tt_over, color=!red, thick=3
+        nolsfmax = max(ccf_tt_over_cp, nolsfidx)
+        lsfmax = max(ccf_tt_over, lsfidx)
+        dxstop, 'nolsfidx', 'lsfidx'
+    endif 
+        
     
     ; Remove first peak
     peak_idx = where(abs(vel_x_over) le 5)
@@ -599,7 +638,7 @@ for specnum = 0, nfiles-1 do begin
     ; Clean G by making it fall to 0 exponentially past 100 km/s
     g_out = g * decay_vec
     
-    g_out = g_out+min(g_out)
+    g_out = g_out - min(g_out)
     
     g_out = g_out * decay_vec
     
@@ -610,8 +649,9 @@ for specnum = 0, nfiles-1 do begin
     
     if display then begin
         plot, vel_x_over, g_out, tit="Derived broadening kernel with theory", $
-          xr = [-100,100]
+          xr = [-500,500]
         oplot, vel_x_over, g_theory, color=!red, thick=3
+        dxstop
     endif
     
     
@@ -644,7 +684,7 @@ for specnum = 0, nfiles-1 do begin
     
     
     
-    plot, sigvec*1d3, gauss_smooth(glog_fft,1), xr=[0,150], yr=[-15,-2], xs=8
+    plot, sigvec*1d3, gauss_smooth(glog_fft,1), xr=[-5,25], yr=[-15,-2], xs=8
     oplot, sigvec*1d3, gauss_smooth(gcomplog_fft,1), color=!red
     vs_tickvec = [60,30,25,20,15,10,8,5]	
     vs_tickval = (k1/vs_tickvec)*1e3
