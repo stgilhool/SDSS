@@ -132,12 +132,14 @@ for i = 0, nstars-1 do begin
                 RMAG_SBD:SIM_RMAG[i], $
                 IMAG_SBD:SIM_IMAG[i], $
                 VMAG:VMAG[i], $
+                M_V:M_V[i], $
                 K_S:K_S[i], $
                 V_K:V_K[i], $
                 PARALLAX:PARALLAX[i], $
                 E_PARALLAX:E_PARALLAX[i], $
                 SP_TYPE:SP_TYPE[i], $
                 VSINI:VSINI[i], $
+                E_VSINI:!values.f_nan, $
                 REF_NUM_DAV:refnum, $
                 REF_NAME:refname[refnum], $
                 BIBCODE:bibcode[refnum], $
